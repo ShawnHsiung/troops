@@ -10,7 +10,7 @@ const (
 
 type Troops struct {
 	MaxSize        int
-	MaxIdle        int
+	MinIdle        int
 	MaxIdleTimeout time.Duration
 	JobBuffer      chan *Job
 	Soldiers       chan IWorker
@@ -18,10 +18,10 @@ type Troops struct {
 	Log            ILogger
 }
 
-func NewTroops(maxSize, maxIdle int) *Troops {
+func NewTroops(maxSize, minIdle int) *Troops {
 	return &Troops{
 		MaxSize:        maxSize,
-		MaxIdle:        maxIdle,
+		MinIdle:        minIdle,
 		MaxIdleTimeout: 10 * time.Minute,
 		JobBuffer:      make(chan *Job, maxSize*scaleMax),
 		Soldiers:       make(chan IWorker, maxSize),
@@ -37,7 +37,7 @@ func (t *Troops) DoJob(f func(args ...interface{}), args ...interface{}) {
 }
 
 func (t *Troops) Run() {
-	for i := 0; i < t.MaxIdle; i++ {
+	for i := 0; i < t.MinIdle; i++ {
 		s := newSoldier(time.Now().Unix())
 		s.setPool(t)
 		s.start()
@@ -76,7 +76,7 @@ func (t *Troops) dispach() {
 			if len(t.JobBuffer) >= t.MaxSize {
 				break
 			}
-			reduce := len(t.Soldiers) - t.MaxIdle
+			reduce := len(t.Soldiers) - t.MinIdle
 			for reduce > 0 {
 				worker := <-t.Soldiers
 				worker.Stop()
